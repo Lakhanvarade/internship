@@ -1,0 +1,226 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <limits>
+#include <algorithm>
+
+using namespace std;
+
+enum Priority { LOW, MEDIUM, HIGH };
+
+struct Task {
+    string description;
+    bool completed;
+    Priority priority;
+
+    Task(string desc, Priority prio) : description(desc), completed(false), priority(prio) {}
+};
+
+class ToDoListManager {
+private:
+    vector<Task> tasks;
+    const string filename = "tasks.txt";
+
+    string priorityToString(Priority priority) const {
+        switch (priority) {
+            case HIGH: return "\033[1;31mHigh\033[0m";  // Red color
+            case MEDIUM: return "\033[1;33mMedium\033[0m"; // Yellow color
+            case LOW: return "\033[1;32mLow\033[0m";   // Green color
+        }
+        return "";
+    }
+
+public:
+    ToDoListManager() {
+        loadTasks();
+    }
+
+    ~ToDoListManager() {
+        saveTasks();
+    }
+
+    void addTask(const string& description, Priority priority) {
+        tasks.push_back(Task(description, priority));
+        cout << "Task added: " << description << " with priority " << priorityToString(priority) << endl;
+    }
+
+    void viewTasks() const {
+        if (tasks.empty()) {
+            cout << "No tasks in the list." << endl;
+            return;
+        }
+
+        cout << "\n\033[1;36mTo-Do List:\033[0m\n";
+        for (size_t i = 0; i < tasks.size(); ++i) {
+            cout << i + 1 << ". [" << (tasks[i].completed ? "\033[1;32mX\033[0m" : " ") << "] "
+                 << tasks[i].description << " (Priority: " << priorityToString(tasks[i].priority) << ")" << endl;
+        }
+        cout << endl;
+    }
+
+    void markTaskCompleted(int taskNumber) {
+        if (taskNumber <= 0 || taskNumber > tasks.size()) {
+            cout << "Invalid task number." << endl;
+            return;
+        }
+
+        tasks[taskNumber - 1].completed = true;
+        cout << "Task " << taskNumber << " marked as completed." << endl;
+    }
+
+    void removeTask(int taskNumber) {
+        if (taskNumber <= 0 || taskNumber > tasks.size()) {
+            cout << "Invalid task number." << endl;
+            return;
+        }
+
+        string confirmation;
+        cout << "Are you sure you want to remove the task: \"" << tasks[taskNumber - 1].description << "\"? (y/n): ";
+        cin >> confirmation;
+
+        if (confirmation == "y" || confirmation == "Y") {
+            cout << "Task removed: " << tasks[taskNumber - 1].description << endl;
+            tasks.erase(tasks.begin() + taskNumber - 1);
+        } else {
+            cout << "Task removal canceled." << endl;
+        }
+    }
+
+    void searchTasks(const string& keyword) const {
+        cout << "\n\033[1;36mSearch Results:\033[0m\n";
+        bool found = false;
+        for (size_t i = 0; i < tasks.size(); ++i) {
+            if (tasks[i].description.find(keyword) != string::npos) {
+                cout << i + 1 << ". [" << (tasks[i].completed ? "\033[1;32mX\033[0m" : " ") << "] "
+                     << tasks[i].description << " (Priority: " << priorityToString(tasks[i].priority) << ")" << endl;
+                found = true;
+            }
+        }
+        if (!found) {
+            cout << "No tasks found matching the keyword: " << keyword << endl;
+        }
+        cout << endl;
+    }
+
+    void sortTasksByPriority() {
+        sort(tasks.begin(), tasks.end(), [](const Task& a, const Task& b) {
+            return a.priority > b.priority;
+        });
+        cout << "Tasks sorted by priority." << endl;
+    }
+
+private:
+    void saveTasks() const {
+        ofstream file(filename);
+        if (!file.is_open()) {
+            cout << "Failed to save tasks to file." << endl;
+            return;
+        }
+
+        for (const auto& task : tasks) {
+            file << task.description << "|" << task.completed << "|" << task.priority << "\n";
+        }
+
+        file.close();
+    }
+
+    void loadTasks() {
+        ifstream file(filename);
+        if (!file.is_open()) {
+            return;  // No tasks to load
+        }
+
+        string line;
+        while (getline(file, line)) {
+            size_t sep1 = line.find('|');
+            size_t sep2 = line.find('|', sep1 + 1);
+
+            string description = line.substr(0, sep1);
+            bool completed = (line.substr(sep1 + 1, sep2 - sep1 - 1) == "1");
+            Priority priority = static_cast<Priority>(stoi(line.substr(sep2 + 1)));
+
+            tasks.push_back(Task(description, priority));
+            tasks.back().completed = completed;
+        }
+
+        file.close();
+    }
+};
+
+int main() {
+    ToDoListManager manager;
+    int choice;
+
+    do {
+        cout << "\n\033[1;36mTo-Do List Manager\033[0m\n";
+        cout << "1. Add Task\n";
+        cout << "2. View Tasks\n";
+        cout << "3. Mark Task as Completed\n";
+        cout << "4. Remove Task\n";
+        cout << "5. Search Tasks\n";
+        cout << "6. Sort Tasks by Priority\n";
+        cout << "7. Exit\n";
+        cout << "Choose an option: ";
+        cin >> choice;
+
+        cin.ignore();  // Ignore newline character left in the input buffer
+
+        switch (choice) {
+        case 1: {
+            string description;
+            int prio;
+            cout << "Enter task description: ";
+            getline(cin, description);
+
+            cout << "Enter task priority (0 = Low, 1 = Medium, 2 = High): ";
+            cin >> prio;
+            while (prio < 0 || prio > 2 || cin.fail()) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << "Invalid input. Enter task priority (0 = Low, 1 = Medium, 2 = High): ";
+                cin >> prio;
+            }
+
+            manager.addTask(description, static_cast<Priority>(prio));
+            break;
+        }
+        case 2:
+            manager.viewTasks();
+            break;
+        case 3: {
+            int taskNumber;
+            cout << "Enter task number to mark as completed: ";
+            cin >> taskNumber;
+            manager.markTaskCompleted(taskNumber);
+            break;
+        }
+        case 4: {
+            int taskNumber;
+            cout << "Enter task number to remove: ";
+            cin >> taskNumber;
+            manager.removeTask(taskNumber);
+            break;
+        }
+        case 5: {
+            string keyword;
+            cout << "Enter keyword to search: ";
+            cin.ignore();
+            getline(cin, keyword);
+            manager.searchTasks(keyword);
+            break;
+        }
+        case 6:
+            manager.sortTasksByPriority();
+            break;
+        case 7:
+            cout << "Exiting the To-Do List Manager." << endl;
+            break;
+        default:
+            cout << "Invalid option. Please try again." << endl;
+            break;
+        }
+    } while (choice != 7);
+
+    return 0;
+}
