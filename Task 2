@@ -1,0 +1,106 @@
+#include <iostream>
+#include <cmath> // For sqrt and pow functions
+#include <limits> // For numeric limits
+using namespace std;
+
+void showMenu() {
+    cout << "==============================" << endl;
+    cout << "       Basic Calculator       " << endl;
+    cout << "==============================" << endl;
+    cout << "1. Addition (+)" << endl;
+    cout << "2. Subtraction (-)" << endl;
+    cout << "3. Multiplication (*)" << endl;
+    cout << "4. Division (/)" << endl;
+    cout << "5. Square Root (√)" << endl;
+    cout << "6. Exponentiation (^)" << endl;
+    cout << "7. Exit" << endl;
+    cout << "==============================" << endl;
+    cout << "Choose an operation: ";
+}
+
+double getValidNumber() {
+    double num;
+    while (true) {
+        cin >> num;
+        if (cin.fail()) {
+            cin.clear(); // Clear the error flag
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignore the incorrect input
+            cout << "Invalid input. Please enter a valid number: ";
+        } else {
+            return num;
+        }
+    }
+}
+
+int main() {
+    double num1, num2;
+    int choice;
+    bool keepRunning = true;
+
+    while (keepRunning) {
+        showMenu();
+        cin >> choice;
+
+        switch (choice) {
+            case 1: // Addition
+                cout << "Enter the first number: ";
+                num1 = getValidNumber();
+                cout << "Enter the second number: ";
+                num2 = getValidNumber();
+                cout << "Result: " << num1 << " + " << num2 << " = " << num1 + num2 << endl;
+                break;
+            case 2: // Subtraction
+                cout << "Enter the first number: ";
+                num1 = getValidNumber();
+                cout << "Enter the second number: ";
+                num2 = getValidNumber();
+                cout << "Result: " << num1 << " - " << num2 << " = " << num1 - num2 << endl;
+                break;
+            case 3: // Multiplication
+                cout << "Enter the first number: ";
+                num1 = getValidNumber();
+                cout << "Enter the second number: ";
+                num2 = getValidNumber();
+                cout << "Result: " << num1 << " * " << num2 << " = " << num1 * num2 << endl;
+                break;
+            case 4: // Division
+                cout << "Enter the first number: ";
+                num1 = getValidNumber();
+                cout << "Enter the second number: ";
+                num2 = getValidNumber();
+                if (num2 != 0) {
+                    cout << "Result: " << num1 << " / " << num2 << " = " << num1 / num2 << endl;
+                } else {
+                    cout << "Error: Division by zero is not allowed!" << endl;
+                }
+                break;
+            case 5: // Square Root
+                cout << "Enter a number: ";
+                num1 = getValidNumber();
+                if (num1 >= 0) {
+                    cout << "Result: √" << num1 << " = " << sqrt(num1) << endl;
+                } else {
+                    cout << "Error: Square root of a negative number is not real!" << endl;
+                }
+                break;
+            case 6: // Exponentiation
+                cout << "Enter the base number: ";
+                num1 = getValidNumber();
+                cout << "Enter the exponent: ";
+                num2 = getValidNumber();
+                cout << "Result: " << num1 << " ^ " << num2 << " = " << pow(num1, num2) << endl;
+                break;
+            case 7: // Exit
+                cout << "Exiting the calculator. Goodbye!" << endl;
+                keepRunning = false;
+                break;
+            default:
+                cout << "Invalid choice. Please choose a valid operation." << endl;
+                break;
+        }
+
+        cout << "------------------------------" << endl;
+    }
+
+    return 0;
+}
