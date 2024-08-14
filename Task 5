@@ -1,0 +1,286 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <ctime>
+#include <iomanip>
+#include <fstream>
+#include <algorithm>
+
+using namespace std;
+
+struct Book {
+    string title;
+    string author;
+    string ISBN;
+    bool isAvailable;
+
+    Book(string t, string a, string isbn) : title(t), author(a), ISBN(isbn), isAvailable(true) {}
+};
+
+struct Borrower {
+    string name;
+    vector<pair<Book, time_t>> borrowedBooks;  // Pair of book and checkout time
+
+    // Constructor to initialize the name
+    Borrower(const string& borrowerName) : name(borrowerName) {}
+};
+
+class Library {
+private:
+    vector<Book> books;
+    vector<Borrower> borrowers;
+    const string booksFile = "books.txt";
+    const string borrowersFile = "borrowers.txt";
+
+    Book* findBookByISBN(const string& isbn) {
+        for (auto& book : books) {
+            if (book.ISBN == isbn) {
+                return &book;
+            }
+        }
+        return nullptr;
+    }
+
+    Borrower* findBorrowerByName(const string& name) {
+        for (auto& borrower : borrowers) {
+            if (borrower.name == name) {
+                return &borrower;
+            }
+        }
+        return nullptr;
+    }
+
+    void loadBooks() {
+        ifstream file(booksFile);
+        if (!file.is_open()) return;
+
+        string title, author, isbn, availability;
+        while (getline(file, title)) {
+            getline(file, author);
+            getline(file, isbn);
+            getline(file, availability);
+
+            Book book(title, author, isbn);
+            book.isAvailable = (availability == "1");
+            books.push_back(book);
+        }
+        file.close();
+    }
+
+    void loadBorrowers() {
+        ifstream file(borrowersFile);
+        if (!file.is_open()) return;
+
+        string name, isbn, timestamp;
+        while (getline(file, name)) {
+            Borrower borrower(name);
+
+            while (getline(file, isbn) && !isbn.empty()) {
+                getline(file, timestamp);
+                Book* book = findBookByISBN(isbn);
+                if (book) {
+                    borrower.borrowedBooks.push_back({ *book, stol(timestamp) });
+                }
+            }
+
+            borrowers.push_back(borrower);
+        }
+        file.close();
+    }
+
+    void saveBooks() const {
+        ofstream file(booksFile);
+        if (!file.is_open()) return;
+
+        for (const auto& book : books) {
+            file << book.title << endl
+                 << book.author << endl
+                 << book.ISBN << endl
+                 << (book.isAvailable ? "1" : "0") << endl;
+        }
+        file.close();
+    }
+
+    void saveBorrowers() const {
+        ofstream file(borrowersFile);
+        if (!file.is_open()) return;
+
+        for (const auto& borrower : borrowers) {
+            file << borrower.name << endl;
+
+            for (const auto& pair : borrower.borrowedBooks) {
+                file << pair.first.ISBN << endl
+                     << pair.second << endl;
+            }
+            file << endl;
+        }
+        file.close();
+    }
+
+public:
+    Library() {
+        loadBooks();
+        loadBorrowers();
+    }
+
+    ~Library() {
+        saveBooks();
+        saveBorrowers();
+    }
+
+    void addBook(const string& title, const string& author, const string& isbn) {
+        books.push_back(Book(title, author, isbn));
+        cout << "\033[1;32mBook added:\033[0m " << title << " by " << author << endl;
+    }
+
+    void searchBooks(const string& query) const {
+        cout << "\n\033[1;36mSearch Results:\033[0m\n";
+        for (const auto& book : books) {
+            if (book.title.find(query) != string::npos || book.author.find(query) != string::npos || book.ISBN == query) {
+                cout << "Title: " << book.title << ", Author: " << book.author
+                     << ", ISBN: " << book.ISBN << ", Available: " << (book.isAvailable ? "\033[1;32mYes\033[0m" : "\033[1;31mNo\033[0m") << endl;
+            }
+        }
+        cout << endl;
+    }
+
+    void checkoutBook(const string& isbn, const string& borrowerName) {
+        Book* book = findBookByISBN(isbn);
+        if (!book) {
+            cout << "\033[1;31mBook not found!\033[0m" << endl;
+            return;
+        }
+
+        if (!book->isAvailable) {
+            cout << "\033[1;31mBook is already checked out!\033[0m" << endl;
+            return;
+        }
+
+        Borrower* borrower = findBorrowerByName(borrowerName);
+        if (!borrower) {
+            borrowers.push_back(Borrower(borrowerName));
+            borrower = &borrowers.back();
+        }
+
+        borrower->borrowedBooks.push_back({ *book, time(0) });
+        book->isAvailable = false;
+        cout << "\033[1;32m" << borrowerName << " checked out " << book->title << "\033[0m" << endl;
+    }
+
+    void returnBook(const string& isbn, const string& borrowerName) {
+        Borrower* borrower = findBorrowerByName(borrowerName);
+        if (!borrower) {
+            cout << "\033[1;31mBorrower not found!\033[0m" << endl;
+            return;
+        }
+
+        for (auto it = borrower->borrowedBooks.begin(); it != borrower->borrowedBooks.end(); ++it) {
+            if (it->first.ISBN == isbn) {
+                time_t now = time(0);
+                double daysBorrowed = difftime(now, it->second) / (60 * 60 * 24);
+                double fine = calculateFine(daysBorrowed);
+
+                it->first.isAvailable = true;
+                cout << "\033[1;32m" << borrowerName << " returned " << it->first.title 
+                     << ". Days borrowed: " << static_cast<int>(daysBorrowed) 
+                     << ". Fine: $" << fine << "\033[0m" << endl;
+
+                borrower->borrowedBooks.erase(it);
+                return;
+            }
+        }
+
+        cout << "\033[1;31mBook not found in " << borrowerName << "'s borrowed list!\033[0m" << endl;
+    }
+
+    double calculateFine(double daysBorrowed) const {
+        const double fineRate = 0.5;  // $0.5 per day
+        const double freeDays = 14.0;  // No fine for first 14 days
+
+        if (daysBorrowed <= freeDays) {
+            return 0.0;
+        }
+
+        return (daysBorrowed - freeDays) * fineRate;
+    }
+
+    void suggestSearch(const string& query) const {
+        cout << "\n\033[1;36mDid you mean:\033[0m\n";
+        for (const auto& book : books) {
+            if (book.title.find(query) != string::npos || book.author.find(query) != string::npos || book.ISBN.find(query) != string::npos) {
+                cout << "- " << book.title << " by " << book.author << " (ISBN: " << book.ISBN << ")" << endl;
+            }
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    Library library;
+    int choice;
+
+    do {
+        cout << "\n\033[1;34mLibrary Management System\033[0m\n";
+        cout << "1. Add Book\n";
+        cout << "2. Search Books\n";
+        cout << "3. Checkout Book\n";
+        cout << "4. Return Book\n";
+        cout << "5. Exit\n";
+        cout << "Choose an option: ";
+        cin >> choice;
+
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');  // Ignore newline character left in the input buffer
+
+        switch (choice) {
+        case 1: {
+            string title, author, isbn;
+            cout << "Enter title: ";
+            getline(cin, title);
+            cout << "Enter author: ";
+            getline(cin, author);
+            cout << "Enter ISBN: ";
+            getline(cin, isbn);
+
+            library.addBook(title, author, isbn);
+            break;
+        }
+        case 2: {
+            string query;
+            cout << "Enter title, author, or ISBN to search: ";
+            getline(cin, query);
+
+            library.searchBooks(query);
+            library.suggestSearch(query);
+            break;
+        }
+        case 3: {
+            string isbn, borrowerName;
+            cout << "Enter ISBN of the book to checkout: ";
+            getline(cin, isbn);
+            cout << "Enter borrower's name: ";
+            getline(cin, borrowerName);
+
+            library.checkoutBook(isbn, borrowerName);
+            break;
+        }
+        case 4: {
+            string isbn, borrowerName;
+            cout << "Enter ISBN of the book to return: ";
+            getline(cin, isbn);
+            cout << "Enter borrower's name: ";
+            getline(cin, borrowerName);
+
+            library.returnBook(isbn, borrowerName);
+            break;
+        }
+        case 5:
+            cout << "\033[1;33mExiting the Library Management System.\033[0m" << endl;
+            break;
+        default:
+            cout << "\033[1;31mInvalid option. Please try again.\033[0m" << endl;
+            break;
+        }
+    } while (choice != 5);
+
+    return 0;
+}
