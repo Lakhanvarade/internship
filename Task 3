@@ -1,0 +1,156 @@
+#include <iostream>
+#include <limits>  // For numeric limits
+using namespace std;
+
+// Constants for board size and player symbols
+const int SIZE = 3;
+char board[SIZE][SIZE];
+char currentPlayer = 'X';
+int winsX = 0, winsO = 0, draws = 0;
+
+// Function to initialize the board
+void initializeBoard() {
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            board[i][j] = '1' + (i * SIZE + j);
+        }
+    }
+}
+
+// Function to display the board with colors
+void displayBoard() {
+    cout << "\n     Tic-Tac-Toe\n";
+    cout << "=======================\n";
+    for (int i = 0; i < SIZE; i++) {
+        cout << "   ";
+        for (int j = 0; j < SIZE; j++) {
+            if (board[i][j] == 'X') {
+                cout << "\033[1;31m" << board[i][j] << "\033[0m"; // Red color for X
+            } else if (board[i][j] == 'O') {
+                cout << "\033[1;34m" << board[i][j] << "\033[0m"; // Blue color for O
+            } else {
+                cout << board[i][j];
+            }
+            if (j < SIZE - 1) cout << " | ";
+        }
+        cout << "\n";
+        if (i < SIZE - 1) cout << "  ---|---|---\n";
+    }
+    cout << "=======================\n";
+}
+
+// Function to validate the player's move
+bool isMoveValid(int move) {
+    if (move < 1 || move > 9) {
+        return false;
+    }
+    int row = (move - 1) / SIZE;
+    int col = (move - 1) % SIZE;
+    return board[row][col] != 'X' && board[row][col] != 'O';
+}
+
+// Function to update the board with the player's move
+void updateBoard(int move) {
+    int row = (move - 1) / SIZE;
+    int col = (move - 1) % SIZE;
+    board[row][col] = currentPlayer;
+}
+
+// Function to check if the current player has won
+bool checkWin() {
+    // Check rows and columns
+    for (int i = 0; i < SIZE; i++) {
+        if ((board[i][0] == currentPlayer && board[i][1] == currentPlayer && board[i][2] == currentPlayer) ||
+            (board[0][i] == currentPlayer && board[1][i] == currentPlayer && board[2][i] == currentPlayer)) {
+            return true;
+        }
+    }
+    // Check diagonals
+    if ((board[0][0] == currentPlayer && board[1][1] == currentPlayer && board[2][2] == currentPlayer) ||
+        (board[0][2] == currentPlayer && board[1][1] == currentPlayer && board[2][0] == currentPlayer)) {
+        return true;
+    }
+    return false;
+}
+
+// Function to check if the game is a draw
+bool checkDraw() {
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            if (board[i][j] != 'X' && board[i][j] != 'O') {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// Function to switch the player
+void switchPlayer() {
+    currentPlayer = (currentPlayer == 'X') ? 'O' : 'X';
+}
+
+// Function to display game statistics
+void displayStats() {
+    cout << "\nGame Statistics:\n";
+    cout << "Player X wins: " << winsX << endl;
+    cout << "Player O wins: " << winsO << endl;
+    cout << "Draws: " << draws << endl;
+    cout << "=======================\n";
+}
+
+int main() {
+    char playAgain;
+
+    do {
+        initializeBoard();
+        currentPlayer = 'X';
+        bool gameWon = false;
+        bool gameDraw = false;
+
+        while (!gameWon && !gameDraw) {
+            displayBoard();
+
+            int move;
+            cout << "Player " << (currentPlayer == 'X' ? "\033[1;31mX\033[0m" : "\033[1;34mO\033[0m")
+                 << ", enter your move (1-9): ";
+            cin >> move;
+
+            while (cin.fail() || !isMoveValid(move)) {
+                cin.clear();  // Clear the error flag
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');  // Ignore invalid input
+                cout << "Invalid move. Try again: ";
+                cin >> move;
+            }
+
+            updateBoard(move);
+
+            gameWon = checkWin();
+            if (!gameWon) {
+                gameDraw = checkDraw();
+                if (!gameDraw) {
+                    switchPlayer();
+                }
+            }
+        }
+
+        displayBoard();
+
+        if (gameWon) {
+            cout << "Player " << (currentPlayer == 'X' ? "\033[1;31mX\033[0m" : "\033[1;34mO\033[0m") << " wins!\n";
+            if (currentPlayer == 'X') winsX++; else winsO++;
+        } else if (gameDraw) {
+            cout << "It's a draw!\n";
+            draws++;
+        }
+
+        displayStats();
+
+        cout << "Do you want to play again? (y/n): ";
+        cin >> playAgain;
+
+    } while (playAgain == 'y' || playAgain == 'Y');
+
+    cout << "Thanks for playing Tic-Tac-Toe!\n";
+    return 0;
+}
